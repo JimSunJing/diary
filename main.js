@@ -100,13 +100,29 @@ ipcMain.handle('save-diaries', async (event, diaries) => {
 });
 
 // 导出日记
-ipcMain.handle('export-diaries', async (event, data) => {
+ipcMain.handle('export-diaries', async (event, data, format = 'markdown') => {
+  // 根据格式自动设置默认扩展名
+  const isJson = typeof data === 'string' && data.trim().startsWith('{');
+  const defaultExt = isJson ? 'json' : 'md';
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const timeStr = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`;
+  const defaultName = isJson 
+    ? `flow_diary_backup_${dateStr}_${timeStr}.json`
+    : `流光日记_${dateStr}_${timeStr}.md`;
+  
   const { filePath } = await dialog.showSaveDialog(mainWindow, {
-    defaultPath: `流光日记_${new Date().toLocaleDateString('zh-CN')}.md`,
-    filters: [
-      { name: 'Markdown', extensions: ['md'] },
-      { name: 'All Files', extensions: ['*'] }
-    ]
+    defaultPath: defaultName,
+    filters: isJson 
+      ? [
+          { name: 'JSON', extensions: ['json'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      : [
+          { name: 'Markdown', extensions: ['md'] },
+          { name: 'Text', extensions: ['txt'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
   });
 
   if (filePath) {

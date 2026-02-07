@@ -769,17 +769,25 @@ async function deleteDiaryFromList(id) {
     updateStats();
 }
 
+// 导出日记函数
 async function exportDiaries() {
-    if (diaries.length === 0) {
+    console.log('Export button clicked, diaries count:', diaries ? diaries.length : 0);
+    
+    if (!diaries || diaries.length === 0) {
         alert('暂无日记可导出');
         return;
     }
 
+    // 简化的导出：直接导出全部日记为 Markdown
+    await simpleExport();
+}
+
+// 简化的导出功能
+async function simpleExport() {
     let markdown = '# 流光日记 · 导出\n\n';
     markdown += `导出时间：${new Date().toLocaleString('zh-CN')}\n\n`;
     markdown += `共 ${diaries.length} 篇日记\n\n---\n\n`;
 
-    // Sort by created date for export
     const sortedDiaries = [...diaries].sort((a, b) => 
         new Date(a.createdAt) - new Date(b.createdAt)
     );
@@ -791,55 +799,227 @@ async function exportDiaries() {
         if (diary.mood) markdown += ` | ${diary.mood}`;
         if (diary.weather) markdown += ` | ${diary.weather}`;
         markdown += '\n\n';
-        if (diary.tags.length > 0) {
+        if (diary.tags && diary.tags.length > 0) {
             markdown += `🏷️ ${diary.tags.join(', ')}\n\n`;
         }
         markdown += `${diary.content}\n\n---\n\n`;
     });
 
-    // Use Electron's export dialog if available
-    if (isElectron) {
-        const result = await window.electronAPI.exportDiaries(markdown);
-        if (result.success) {
-            alert(`日记已导出到：${result.filePath}`);
-        } else if (!result.canceled) {
-            alert(`导出失败：${result.error || '未知错误'}`);
+    if (isElectron && window.electronAPI && window.electronAPI.exportDiaries) {
+        try {
+            const result = await window.electronAPI.exportDiaries(markdown);
+            if (result.success) {
+                alert(`成功导出 ${diaries.length} 篇日记到：${result.filePath}`);
+            } else if (!result.canceled) {
+                alert(`导出失败：${result.error || '未知错误'}`);
+            }
+        } catch (err) {
+            console.error('Export error:', err);
+            fallbackExport(markdown);
         }
     } else {
-        const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `流光日记_${new Date().toLocaleDateString('zh-CN')}.md`;
-        a.click();
-        URL.revokeObjectURL(url);
+        fallbackExport(markdown);
     }
+}
+
+// 浏览器回退导出方式
+function fallbackExport(markdown) {
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`;
+    a.download = `流光日记_${dateStr}_${timeStr}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    alert(`成功导出 ${diaries.length} 篇日记！`);
 }
 
 async function importDiaries() {
     if (!isElectron) {
-        alert('导入功能仅在 Electron 应用中可用');
+        // 浏览器版本：使用文件选择器
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+                await processImportedData(data);
+            } catch (err) {
+                alert(`导入失败：${err.message || '文件格式错误'}`);
+            }
+        };
+        input.click();
         return;
     }
 
+    // Electron 版本
     const result = await window.electronAPI.importDiaries();
-    if (result.success) {
-        const importedDiaries = result.diaries;
-        if (Array.isArray(importedDiaries) && importedDiaries.length > 0) {
-            const confirmMsg = `确定要导入 ${importedDiaries.length} 篇日记吗？这将覆盖现有数据。`;
-            if (confirm(confirmMsg)) {
-                diaries = importedDiaries;
-                await saveDiaries();
-                updateSidebar();
-                updateStats();
-                alert('导入成功！');
-            }
+    if (!result.success) {
+        if (!result.canceled) {
+            alert(`导入失败：${result.error || '未知错误'}`);
+        }
+        return;
+    }
+
+    await processImportedData(result.diaries);
+}
+
+async function processImportedData(data) {
+    // 处理新的导出格式（包含元数据）和旧格式（纯数组）
+    let importedDiaries;
+    
+    if (Array.isArray(data)) {
+        // 旧格式：纯日记数组
+        importedDiaries = data;
+    } else if (data && typeof data === 'object') {
+        // 新格式：包含元数据的对象
+        if (data.diaries && Array.isArray(data.diaries)) {
+            importedDiaries = data.diaries;
+            console.log(`导入 Flow Diary 备份 (v${data.version || 'unknown'})`);
         } else {
             alert('导入的文件格式不正确');
+            return;
         }
-    } else if (!result.canceled) {
-        alert(`导入失败：${result.error || '未知错误'}`);
+    } else {
+        alert('导入的文件格式不正确');
+        return;
     }
+    
+    if (importedDiaries.length === 0) {
+        alert('没有找到可导入的日记');
+        return;
+    }
+
+    // 分析重复情况
+    const existingIds = new Set(diaries.map(d => d.id));
+    const duplicates = importedDiaries.filter(d => existingIds.has(d.id));
+    const newDiaries = importedDiaries.filter(d => !existingIds.has(d.id));
+
+    if (duplicates.length === 0) {
+        // 没有重复，直接导入
+        diaries = [...newDiaries, ...diaries];
+        await saveDiaries();
+        updateSidebar();
+        updateStats();
+        alert(`成功导入 ${newDiaries.length} 篇日记！`);
+        return;
+    }
+
+    // 有重复，显示导入选项对话框
+    showImportOptions(newDiaries, duplicates);
+}
+
+function showImportOptions(newDiaries, duplicates) {
+    const newCount = newDiaries.length;
+    const dupCount = duplicates.length;
+    
+    // 显示导入结果模态框
+    const modalHTML = `
+        <div class="modal-overlay import-modal" id="importOptionsModal" style="display: flex; z-index: 2000;">
+            <div class="modal import-modal-content" style="max-width: 450px;">
+                <div class="modal-title">导入日记</div>
+                <div class="import-summary" style="margin: 20px 0; padding: 16px; background: rgba(168, 155, 140, 0.1); border-radius: 8px; text-align: left;">
+                    <div style="font-size: 14px; margin-bottom: 8px; color: var(--text-primary);">
+                        <strong>✨ 新日记：</strong>${newCount} 篇
+                    </div>
+                    <div style="font-size: 14px; color: var(--text-primary);">
+                        <strong>📝 重复日记：</strong>${dupCount} 篇
+                    </div>
+                </div>
+                <div style="margin-bottom: 24px; text-align: left;">
+                    <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+                        选择处理方式：
+                    </label>
+                    <div class="import-option" style="margin-bottom: 12px; cursor: pointer;" onclick="selectImportOption('skip')">
+                        <input type="radio" name="importOption" value="skip" id="optionSkip" checked style="margin-right: 8px; cursor: pointer;">
+                        <label for="optionSkip" style="cursor: pointer; font-size: 14px; color: var(--text-primary);">
+                            <strong>跳过重复</strong> - 只导入新日记，保留现有版本
+                        </label>
+                    </div>
+                    <div class="import-option" style="margin-bottom: 12px; cursor: pointer;" onclick="selectImportOption('update')">
+                        <input type="radio" name="importOption" value="update" id="optionUpdate" style="margin-right: 8px; cursor: pointer;">
+                        <label for="optionUpdate" style="cursor: pointer; font-size: 14px; color: var(--text-primary);">
+                            <strong>更新重复</strong> - 导入新日记，用导入版本覆盖重复项
+                        </label>
+                    </div>
+                    <div class="import-option" style="cursor: pointer;" onclick="selectImportOption('keepBoth')">
+                        <input type="radio" name="importOption" value="keepBoth" id="optionKeepBoth" style="margin-right: 8px; cursor: pointer;">
+                        <label for="optionKeepBoth" style="cursor: pointer; font-size: 14px; color: var(--text-primary);">
+                            <strong>保留两者</strong> - 导入所有日记，重复项添加"[导入]"标记
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-btn" onclick="closeImportModal()">取消</button>
+                    <button class="modal-btn primary" onclick="executeImport()" style="background: linear-gradient(135deg, rgba(196, 168, 130, 0.3), rgba(143, 163, 176, 0.3)); border-color: rgba(196, 168, 130, 0.3); color: var(--text-primary);">确认导入</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // 存储导入数据供后续使用
+    window._pendingImport = { newDiaries, duplicates };
+    
+    // 添加模态框到页面
+    const modalContainer = document.createElement('div');
+    modalContainer.innerHTML = modalHTML;
+    document.body.appendChild(modalContainer.firstElementChild);
+}
+
+function selectImportOption(option) {
+    document.querySelectorAll('input[name="importOption"]').forEach(radio => {
+        radio.checked = radio.value === option;
+    });
+}
+
+function closeImportModal() {
+    const modal = document.getElementById('importOptionsModal');
+    if (modal) {
+        modal.remove();
+    }
+    window._pendingImport = null;
+}
+
+async function executeImport() {
+    const selectedOption = document.querySelector('input[name="importOption"]:checked')?.value || 'skip';
+    const { newDiaries, duplicates } = window._pendingImport;
+    
+    let importedCount = newDiaries.length;
+    
+    if (selectedOption === 'skip') {
+        // 只添加新日记
+        diaries = [...newDiaries, ...diaries];
+    } else if (selectedOption === 'update') {
+        // 用导入的版本覆盖重复项
+        const duplicateIds = new Set(duplicates.map(d => d.id));
+        diaries = diaries.filter(d => !duplicateIds.has(d.id));
+        diaries = [...newDiaries, ...duplicates, ...diaries];
+        importedCount += duplicates.length;
+    } else if (selectedOption === 'keepBoth') {
+        // 保留两者，给导入的重复项添加标记
+        const markedDuplicates = duplicates.map(d => ({
+            ...d,
+            title: d.title ? `[导入] ${d.title}` : '[导入] 无标题',
+            id: generateId() // 生成新ID避免冲突
+        }));
+        diaries = [...newDiaries, ...markedDuplicates, ...diaries];
+        importedCount += duplicates.length;
+    }
+    
+    await saveDiaries();
+    updateSidebar();
+    updateStats();
+    closeImportModal();
+    alert(`成功导入 ${importedCount} 篇日记！`);
 }
 
 // ========== Settings ==========
@@ -1028,8 +1208,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (e.key === 'Escape') {
             const settingsModal = document.getElementById('settingsModal');
             const templateModal = document.getElementById('templateModal');
+            const importOptionsModal = document.getElementById('importOptionsModal');
+            
             if (isZenMode) {
                 toggleZenMode();
+            } else if (importOptionsModal) {
+                closeImportModal();
             } else if (templateModal && templateModal.classList.contains('active')) {
                 closeTemplateModal();
             } else if (settingsModal && settingsModal.classList.contains('active')) {
