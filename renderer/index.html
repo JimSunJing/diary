@@ -1,0 +1,1921 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>流光日记 · Flow Diary</title>
+    <script src="js/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #f5f0eb;
+            --bg-glass: rgba(245, 240, 235, 0.55);
+            --bg-glass-hover: rgba(245, 240, 235, 0.72);
+            --text-primary: #3a3632;
+            --text-secondary: #8a8279;
+            --text-tertiary: #b5aea5;
+            --accent: #a89b8c;
+            --accent-warm: #c4a882;
+            --accent-cool: #8fa3b0;
+            --accent-rose: #b8a0a0;
+            --border: rgba(168, 155, 140, 0.2);
+            --border-strong: rgba(168, 155, 140, 0.35);
+            --shadow: rgba(58, 54, 50, 0.06);
+            --shadow-strong: rgba(58, 54, 50, 0.12);
+        }
+
+        body {
+            font-family: 'Noto Serif SC', 'Inter', serif;
+            background: #e8e2db;
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #three-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .app-container {
+            position: relative;
+            z-index: 1;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 40px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            background: rgba(245, 240, 235, 0.3);
+            border-bottom: 1px solid var(--border);
+            -webkit-app-region: drag;
+        }
+
+        .header-actions {
+            -webkit-app-region: no-drag;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent-warm), var(--accent-cool));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            opacity: 0.85;
+        }
+
+        .logo-text {
+            font-size: 20px;
+            font-weight: 500;
+            letter-spacing: 2px;
+            color: var(--text-primary);
+        }
+
+        .logo-subtitle {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            font-weight: 400;
+            color: var(--text-tertiary);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-btn {
+            padding: 8px 20px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(10px);
+            color: var(--text-secondary);
+            font-family: 'Noto Serif SC', serif;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .header-btn:hover {
+            background: var(--bg-glass-hover);
+            color: var(--text-primary);
+            border-color: var(--border-strong);
+            transform: translateY(-1px);
+        }
+
+        .header-btn.primary {
+            background: linear-gradient(135deg, rgba(196, 168, 130, 0.3), rgba(143, 163, 176, 0.3));
+            border-color: rgba(196, 168, 130, 0.3);
+            color: var(--text-primary);
+        }
+
+        .header-btn.primary:hover {
+            background: linear-gradient(135deg, rgba(196, 168, 130, 0.45), rgba(143, 163, 176, 0.45));
+        }
+
+        /* Main Layout */
+        .main-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 340px;
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            background: rgba(245, 240, 235, 0.35);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+            width: 0;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 24px 24px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar-header.collapsed {
+            padding: 16px 24px;
+            justify-content: center;
+        }
+
+        .sidebar-header.collapsed .search-box {
+            display: none;
+        }
+
+        .sidebar-header.collapsed .search-toggle-btn {
+            position: static;
+            transform: none;
+        }
+
+        .search-toggle-btn {
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(8px);
+            color: var(--text-secondary);
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .search-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
+            border-color: var(--accent-warm);
+            color: var(--text-primary);
+        }
+
+        .search-toggle-btn.active {
+            background: rgba(196, 168, 130, 0.2);
+            border-color: var(--accent-warm);
+            color: var(--text-primary);
+        }
+
+        .search-box-wrapper {
+            flex: 1;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .search-box-wrapper.collapsed {
+            width: 0;
+            flex: 0;
+            opacity: 0;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 10px 16px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(8px);
+            font-family: 'Noto Serif SC', serif;
+            font-size: 13px;
+            color: var(--text-primary);
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-box::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .search-box:focus {
+            border-color: var(--accent-warm);
+            background: rgba(255, 255, 255, 0.5);
+            box-shadow: 0 0 0 3px rgba(196, 168, 130, 0.1);
+        }
+
+        .sidebar-stats {
+            display: flex;
+            gap: 8px;
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .stat-chip {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-family: 'Inter', sans-serif;
+            color: var(--text-secondary);
+            background: rgba(168, 155, 140, 0.1);
+            border: 1px solid var(--border);
+        }
+
+        .stat-chip span {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .diary-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .diary-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .diary-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .diary-list::-webkit-scrollbar-thumb {
+            background: var(--border-strong);
+            border-radius: 2px;
+        }
+
+        .diary-item {
+            padding: 16px 18px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 4px;
+            border: 1px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .diary-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 3px;
+            height: 100%;
+            border-radius: 0 2px 2px 0;
+            background: linear-gradient(to bottom, var(--accent-warm), var(--accent-cool));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .diary-item:hover {
+            background: rgba(255, 255, 255, 0.35);
+            border-color: var(--border);
+        }
+
+        .diary-item.active {
+            background: rgba(255, 255, 255, 0.5);
+            border-color: var(--border-strong);
+        }
+
+        .diary-item.active::before {
+            opacity: 1;
+        }
+
+        .diary-item-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .diary-item-date {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: var(--text-tertiary);
+            letter-spacing: 0.5px;
+        }
+
+        .diary-item-delete {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: var(--text-tertiary);
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .diary-item:hover .diary-item-delete {
+            opacity: 0.6;
+        }
+
+        .diary-item-delete:hover {
+            opacity: 1 !important;
+            background: rgba(196, 160, 160, 0.2);
+            color: #c4a0a0;
+        }
+
+        .diary-item-mood {
+            font-size: 14px;
+            margin-bottom: 4px;
+            min-height: 20px;
+        }
+
+        .diary-item-title {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+
+        .diary-item-preview {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            line-height: 1.6;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        
+        /* Editor Panel */
+        #editorPanel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Editor Area */
+        .editor-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 780px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 40px 50px;
+            overflow: hidden;
+        }
+
+        .editor-container::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .editor-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .editor-container::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        .editor-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 32px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .editor-date {
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+        }
+
+        .mood-selector {
+            display: flex;
+            gap: 6px;
+            margin-left: auto;
+        }
+
+        .mood-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .mood-btn:hover {
+            background: rgba(255, 255, 255, 0.6);
+            transform: scale(1.1);
+        }
+
+        .mood-btn.active {
+            background: rgba(196, 168, 130, 0.2);
+            border-color: var(--accent-warm);
+            transform: scale(1.15);
+        }
+
+        .weather-selector {
+            display: flex;
+            gap: 6px;
+        }
+
+        .weather-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .weather-btn:hover {
+            background: rgba(255, 255, 255, 0.6);
+            transform: scale(1.1);
+        }
+
+        .weather-btn.active {
+            background: rgba(143, 163, 176, 0.2);
+            border-color: var(--accent-cool);
+            transform: scale(1.15);
+        }
+
+        .title-input {
+            width: 100%;
+            border: none;
+            background: transparent;
+            font-family: 'Noto Serif SC', serif;
+            font-size: calc(var(--editor-font-size, 15px) + 13px);
+            font-weight: 600;
+            color: var(--text-primary);
+            outline: none;
+            margin-bottom: 24px;
+            line-height: 1.4;
+            transition: font-size 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .title-input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .content-editor {
+            flex: 1;
+            width: 100%;
+            border: none;
+            background: transparent;
+            font-family: 'Noto Serif SC', serif;
+            font-size: var(--editor-font-size, 15px);
+            color: var(--text-primary);
+            outline: none;
+            resize: none;
+            line-height: var(--editor-line-height, 2);
+            letter-spacing: 0.3px;
+            transition: font-size 0.3s ease, line-height 0.3s ease;
+            overflow-y: auto;
+        }
+
+        .content-editor::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        /* Custom scrollbar for content editor */
+        .content-editor::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        .content-editor::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .content-editor::-webkit-scrollbar-thumb {
+            background: rgba(168, 155, 140, 0.25);
+            border-radius: 3px;
+            transition: all 0.3s ease;
+        }
+
+        .content-editor::-webkit-scrollbar-thumb:hover {
+            background: rgba(168, 155, 140, 0.45);
+        }
+
+        .content-editor::-webkit-scrollbar-corner {
+            background: transparent;
+        }
+
+        /* Dark mode scrollbar */
+        body.dark-mode .content-editor::-webkit-scrollbar-thumb {
+            background: rgba(196, 168, 130, 0.2);
+        }
+
+        body.dark-mode .content-editor::-webkit-scrollbar-thumb:hover {
+            background: rgba(196, 168, 130, 0.35);
+        }
+
+        .editor-footer {
+            padding: 16px 50px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-top: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+            background: rgba(245, 240, 235, 0.2);
+            flex-shrink: 0;
+        }
+
+        .word-count {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            color: var(--text-tertiary);
+        }
+
+        .save-status {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .save-status.saving {
+            color: var(--accent-warm);
+        }
+
+        .save-status.saved {
+            color: var(--accent-cool);
+        }
+
+        .save-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-tertiary);
+            transition: background 0.3s ease;
+        }
+
+        .save-status.saving .save-dot {
+            background: var(--accent-warm);
+            animation: pulse 1s infinite;
+        }
+
+        .save-status.saved .save-dot {
+            background: var(--accent-cool);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Welcome Screen */
+        .welcome-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+            text-align: center;
+        }
+
+        .welcome-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(196, 168, 130, 0.15), rgba(143, 163, 176, 0.15));
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            margin-bottom: 24px;
+            backdrop-filter: blur(10px);
+        }
+
+        .welcome-title {
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .welcome-desc {
+            font-size: 14px;
+            color: var(--text-tertiary);
+            line-height: 1.8;
+            max-width: 360px;
+            margin-bottom: 32px;
+        }
+
+        .welcome-btn {
+            padding: 12px 32px;
+            border: 1px solid var(--border-strong);
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(196, 168, 130, 0.2), rgba(143, 163, 176, 0.2));
+            backdrop-filter: blur(10px);
+            color: var(--text-primary);
+            font-family: 'Noto Serif SC', serif;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .welcome-btn:hover {
+            background: linear-gradient(135deg, rgba(196, 168, 130, 0.35), rgba(143, 163, 176, 0.35));
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px var(--shadow);
+        }
+
+        /* Tags */
+        .tags-container {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .tag-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tag-input {
+            width: 80px;
+            padding: 4px 10px;
+            border: 1px dashed var(--border-strong);
+            border-radius: 6px;
+            background: transparent;
+            font-family: 'Noto Serif SC', serif;
+            font-size: 12px;
+            color: var(--text-secondary);
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .tag-input:focus {
+            border-style: solid;
+            border-color: var(--accent-warm);
+            width: 120px;
+        }
+
+        .tag {
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            background: rgba(168, 155, 140, 0.1);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .tag-remove {
+            cursor: pointer;
+            opacity: 0.5;
+            font-size: 14px;
+            transition: opacity 0.2s;
+        }
+
+        .tag-remove:hover {
+            opacity: 1;
+        }
+
+        /* Delete button */
+        .delete-btn {
+            padding: 8px 16px;
+            border: 1px solid rgba(180, 130, 130, 0.3);
+            border-radius: 8px;
+            background: rgba(184, 160, 160, 0.1);
+            color: var(--accent-rose);
+            font-family: 'Noto Serif SC', serif;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .delete-btn:hover {
+            background: rgba(184, 160, 160, 0.2);
+            border-color: rgba(180, 130, 130, 0.5);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(58, 54, 50, 0.3);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--bg-glass-hover);
+            backdrop-filter: blur(30px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+
+        .modal-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .modal-btn {
+            padding: 8px 24px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.3);
+            font-family: 'Noto Serif SC', serif;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: var(--text-secondary);
+        }
+
+        .modal-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .modal-btn.danger {
+            background: rgba(184, 160, 160, 0.2);
+            border-color: rgba(180, 130, 130, 0.3);
+            color: var(--text-primary);
+        }
+
+        .modal-btn.danger:hover {
+            background: rgba(184, 160, 160, 0.35);
+        }
+
+        /* Animations */
+        .fade-in {
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-in {
+            animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Empty state */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .empty-state-icon {
+            font-size: 40px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 13px;
+            color: var(--text-tertiary);
+            line-height: 1.6;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                z-index: 10;
+                height: 100%;
+                width: 300px;
+            }
+
+            .header {
+                padding: 16px 20px;
+            }
+
+            .editor-container {
+                padding: 24px 20px;
+            }
+
+            .editor-footer {
+                padding: 12px 20px;
+            }
+        }
+
+        /* Export area hidden */
+        .export-area {
+            display: none;
+        }
+
+        /* Zen Mode - Pure Writing Experience */
+        .app-container.zen-mode {
+            background: transparent;
+        }
+
+        .app-container.zen-mode .sidebar {
+            transform: translateX(-100%);
+            width: 0;
+            overflow: hidden;
+        }
+
+        /* Completely hide header and footer in zen mode */
+        .app-container.zen-mode .header,
+        .app-container.zen-mode .app-footer {
+            display: none !important;
+        }
+
+        /* Expand editor to fill entire screen */
+        .app-container.zen-mode .main-content {
+            height: 100vh;
+        }
+
+        .app-container.zen-mode .editor-area {
+            padding: 0;
+        }
+
+        .app-container.zen-mode .editor-container {
+            max-width: 800px;
+            padding: 60px 50px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .app-container.zen-mode .editor-footer {
+            display: none;
+        }
+
+        /* Hide welcome screen elements */
+        .app-container.zen-mode .welcome-screen {
+            padding: 60px;
+        }
+
+        /* Zen mode indicator - always visible in zen mode */
+        .zen-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(196, 168, 130, 0.2);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(196, 168, 130, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: var(--text-primary);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        .app-container.zen-mode ~ .zen-indicator {
+            opacity: 0.6;
+            visibility: visible;
+        }
+
+        .app-container.zen-mode ~ .zen-indicator:hover {
+            opacity: 1;
+            background: rgba(196, 168, 130, 0.35);
+            transform: scale(1.1);
+        }
+
+        /* Dark mode adjustments for zen indicator */
+        body.dark-mode ~ .zen-indicator {
+            background: rgba(196, 168, 130, 0.15);
+            border-color: rgba(196, 168, 130, 0.25);
+        }
+
+        body.dark-mode ~ .zen-indicator:hover {
+            background: rgba(196, 168, 130, 0.25);
+            border-color: rgba(196, 168, 130, 0.4);
+        }
+
+        /* Footer */
+        .app-footer {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            padding: 8px 16px;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: var(--text-tertiary);
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .app-footer span {
+            pointer-events: auto;
+        }
+
+        /* Window Controls for Windows */
+        .window-controls {
+            display: none;
+            -webkit-app-region: no-drag;
+        }
+
+        /* System Auto Dark Mode - Same as Manual Dark Mode */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-primary: #0c0a08;
+                --bg-secondary: #141210;
+                --bg-glass: rgba(28, 25, 22, 0.75);
+                --bg-glass-hover: rgba(35, 32, 28, 0.9);
+                --text-primary: #f8f4ef;
+                --text-secondary: #c9b8a2;
+                --text-tertiary: #8a7b68;
+                --border: rgba(196, 168, 130, 0.12);
+                --border-strong: rgba(196, 168, 130, 0.25);
+                --accent-warm: #d4b896;
+                --accent-cool: #9ab4c4;
+                --accent-rose: #c4a0a0;
+            }
+
+            body {
+                background: linear-gradient(135deg, #0c0a08 0%, #141210 50%, #0f0d0b 100%);
+                color: var(--text-primary);
+            }
+
+            #three-canvas {
+                opacity: 0.4;
+                filter: saturate(0.7) brightness(0.6);
+            }
+
+            .app-container {
+                background: transparent;
+            }
+
+            .header {
+                background: rgba(20, 18, 16, 0.6);
+                border-bottom-color: var(--border);
+            }
+
+            .sidebar {
+                background: rgba(20, 18, 16, 0.5);
+                border-right-color: var(--border);
+            }
+
+            .diary-item {
+                border-color: transparent;
+            }
+
+            .diary-item:hover {
+                background: rgba(196, 168, 130, 0.08);
+                border-color: var(--border);
+            }
+
+            .diary-item.active {
+                background: rgba(196, 168, 130, 0.12);
+                border-color: var(--border-strong);
+            }
+
+            .search-box {
+                background: rgba(40, 36, 32, 0.6);
+                border-color: var(--border);
+                color: var(--text-primary);
+            }
+
+            .search-box:focus {
+                background: rgba(50, 45, 40, 0.8);
+                border-color: var(--accent-warm);
+            }
+
+            .search-box::placeholder {
+                color: var(--text-tertiary);
+            }
+
+            .header-btn {
+                background: rgba(40, 36, 32, 0.5);
+                border-color: var(--border);
+                color: var(--text-secondary);
+            }
+
+            .header-btn:hover {
+                background: rgba(196, 168, 130, 0.15);
+                border-color: var(--border-strong);
+                color: var(--text-primary);
+            }
+
+            .header-btn.primary {
+                background: linear-gradient(135deg, rgba(196, 168, 130, 0.25), rgba(143, 163, 176, 0.25));
+                border-color: rgba(196, 168, 130, 0.3);
+            }
+
+            .stat-chip {
+                background: rgba(196, 168, 130, 0.08);
+                border-color: var(--border);
+                color: var(--text-secondary);
+            }
+
+            .stat-chip span {
+                color: var(--text-primary);
+            }
+
+            .mood-btn,
+            .weather-btn {
+                background: rgba(40, 36, 32, 0.6);
+                border-color: var(--border);
+            }
+
+            .mood-btn:hover,
+            .weather-btn:hover {
+                background: rgba(196, 168, 130, 0.2);
+            }
+
+            .mood-btn.active {
+                background: rgba(212, 184, 150, 0.25);
+                border-color: var(--accent-warm);
+            }
+
+            .weather-btn.active {
+                background: rgba(154, 180, 196, 0.25);
+                border-color: var(--accent-cool);
+            }
+
+            .tag {
+                background: rgba(196, 168, 130, 0.1);
+                border-color: var(--border);
+                color: var(--text-secondary);
+            }
+
+            .tag-input {
+                border-color: var(--border);
+                color: var(--text-secondary);
+            }
+
+            .tag-input:focus {
+                border-color: var(--accent-warm);
+            }
+
+            .delete-btn {
+                background: rgba(196, 160, 160, 0.1);
+                border-color: rgba(196, 160, 160, 0.25);
+                color: #d4a0a0;
+            }
+
+            .delete-btn:hover {
+                background: rgba(196, 160, 160, 0.2);
+                border-color: rgba(196, 160, 160, 0.4);
+            }
+
+            .modal {
+                background: rgba(30, 27, 24, 0.95);
+                border-color: var(--border);
+            }
+
+            .theme-btn {
+                background: rgba(40, 36, 32, 0.6);
+                border-color: var(--border);
+            }
+
+            .theme-btn:hover {
+                background: rgba(196, 168, 130, 0.15);
+            }
+
+            .theme-btn.active {
+                background: rgba(212, 184, 150, 0.2);
+                border-color: var(--accent-warm);
+            }
+
+            .font-size-slider {
+                background: rgba(196, 168, 130, 0.15);
+            }
+
+            .setting-select {
+                background: rgba(40, 36, 32, 0.6);
+                border-color: var(--border);
+                color: var(--text-primary);
+            }
+
+            .setting-select:hover {
+                background: rgba(50, 45, 40, 0.8);
+            }
+
+            .setting-select:focus {
+                border-color: var(--accent-warm);
+            }
+
+            .editor-footer {
+                background: rgba(20, 18, 16, 0.4);
+                border-top-color: var(--border);
+            }
+
+            .welcome-btn {
+                background: linear-gradient(135deg, rgba(212, 184, 150, 0.15), rgba(154, 180, 196, 0.15));
+                border-color: var(--border-strong);
+            }
+
+            .welcome-btn:hover {
+                background: linear-gradient(135deg, rgba(212, 184, 150, 0.3), rgba(154, 180, 196, 0.3));
+            }
+
+            .diary-item-date {
+                color: var(--text-tertiary);
+            }
+
+            .diary-item-title {
+                color: var(--text-primary);
+            }
+
+            .diary-item-preview {
+                color: var(--text-secondary);
+            }
+
+            .empty-state-text {
+                color: var(--text-tertiary);
+            }
+        }
+
+        /* Manual Dark Mode - Deep Elegant Theme */
+        body.dark-mode {
+            /* Deep warm black background */
+            --bg-primary: #0c0a08;
+            --bg-secondary: #141210;
+            
+            /* Glass effects with higher opacity for depth */
+            --bg-glass: rgba(28, 25, 22, 0.75);
+            --bg-glass-hover: rgba(35, 32, 28, 0.9);
+            
+            /* High contrast text - warm off-white */
+            --text-primary: #f8f4ef;
+            --text-secondary: #c9b8a2;
+            --text-tertiary: #8a7b68;
+            
+            /* Warm toned borders */
+            --border: rgba(196, 168, 130, 0.12);
+            --border-strong: rgba(196, 168, 130, 0.25);
+            
+            /* Accent colors - more vibrant in dark mode */
+            --accent-warm: #d4b896;
+            --accent-cool: #9ab4c4;
+            --accent-rose: #c4a0a0;
+            
+            background: linear-gradient(135deg, #0c0a08 0%, #141210 50%, #0f0d0b 100%);
+            color: var(--text-primary);
+        }
+
+        body.dark-mode #three-canvas {
+            opacity: 0.4;
+            filter: saturate(0.7) brightness(0.6);
+        }
+
+        body.dark-mode .app-container {
+            background: transparent;
+        }
+
+        body.dark-mode .header {
+            background: rgba(20, 18, 16, 0.6);
+            border-bottom-color: var(--border);
+        }
+
+        body.dark-mode .sidebar {
+            background: rgba(20, 18, 16, 0.5);
+            border-right-color: var(--border);
+        }
+
+        body.dark-mode .diary-item {
+            border-color: transparent;
+        }
+
+        body.dark-mode .diary-item:hover {
+            background: rgba(196, 168, 130, 0.08);
+            border-color: var(--border);
+        }
+
+        body.dark-mode .diary-item.active {
+            background: rgba(196, 168, 130, 0.12);
+            border-color: var(--border-strong);
+        }
+
+        body.dark-mode .search-box {
+            background: rgba(40, 36, 32, 0.6);
+            border-color: var(--border);
+            color: var(--text-primary);
+        }
+
+        body.dark-mode .search-box:focus {
+            background: rgba(50, 45, 40, 0.8);
+            border-color: var(--accent-warm);
+        }
+
+        body.dark-mode .search-box::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        body.dark-mode .header-btn {
+            background: rgba(40, 36, 32, 0.5);
+            border-color: var(--border);
+            color: var(--text-secondary);
+        }
+
+        body.dark-mode .header-btn:hover {
+            background: rgba(196, 168, 130, 0.15);
+            border-color: var(--border-strong);
+            color: var(--text-primary);
+        }
+
+        body.dark-mode .header-btn.primary {
+            background: linear-gradient(135deg, rgba(196, 168, 130, 0.25), rgba(143, 163, 176, 0.25));
+            border-color: rgba(196, 168, 130, 0.3);
+        }
+
+        body.dark-mode .stat-chip {
+            background: rgba(196, 168, 130, 0.08);
+            border-color: var(--border);
+            color: var(--text-secondary);
+        }
+
+        body.dark-mode .stat-chip span {
+            color: var(--text-primary);
+        }
+
+        body.dark-mode .mood-btn,
+        body.dark-mode .weather-btn {
+            background: rgba(40, 36, 32, 0.6);
+            border-color: var(--border);
+        }
+
+        body.dark-mode .mood-btn:hover,
+        body.dark-mode .weather-btn:hover {
+            background: rgba(196, 168, 130, 0.2);
+        }
+
+        body.dark-mode .mood-btn.active {
+            background: rgba(212, 184, 150, 0.25);
+            border-color: var(--accent-warm);
+        }
+
+        body.dark-mode .weather-btn.active {
+            background: rgba(154, 180, 196, 0.25);
+            border-color: var(--accent-cool);
+        }
+
+        body.dark-mode .tag {
+            background: rgba(196, 168, 130, 0.1);
+            border-color: var(--border);
+            color: var(--text-secondary);
+        }
+
+        body.dark-mode .tag-input {
+            border-color: var(--border);
+            color: var(--text-secondary);
+        }
+
+        body.dark-mode .tag-input:focus {
+            border-color: var(--accent-warm);
+        }
+
+        body.dark-mode .delete-btn {
+            background: rgba(196, 160, 160, 0.1);
+            border-color: rgba(196, 160, 160, 0.25);
+            color: #d4a0a0;
+        }
+
+        body.dark-mode .delete-btn:hover {
+            background: rgba(196, 160, 160, 0.2);
+            border-color: rgba(196, 160, 160, 0.4);
+        }
+
+        body.dark-mode .modal {
+            background: rgba(30, 27, 24, 0.95);
+            border-color: var(--border);
+        }
+
+        body.dark-mode .theme-btn {
+            background: rgba(40, 36, 32, 0.6);
+            border-color: var(--border);
+        }
+
+        body.dark-mode .theme-btn:hover {
+            background: rgba(196, 168, 130, 0.15);
+        }
+
+        body.dark-mode .theme-btn.active {
+            background: rgba(212, 184, 150, 0.2);
+            border-color: var(--accent-warm);
+        }
+
+        body.dark-mode .font-size-slider {
+            background: rgba(196, 168, 130, 0.15);
+        }
+
+        body.dark-mode .setting-select {
+            background: rgba(40, 36, 32, 0.6);
+            border-color: var(--border);
+            color: var(--text-primary);
+        }
+
+        body.dark-mode .setting-select:hover {
+            background: rgba(50, 45, 40, 0.8);
+        }
+
+        body.dark-mode .setting-select:focus {
+            border-color: var(--accent-warm);
+        }
+
+        body.dark-mode .editor-footer {
+            background: rgba(20, 18, 16, 0.4);
+            border-top-color: var(--border);
+        }
+
+        body.dark-mode .welcome-btn {
+            background: linear-gradient(135deg, rgba(212, 184, 150, 0.15), rgba(154, 180, 196, 0.15));
+            border-color: var(--border-strong);
+        }
+
+        body.dark-mode .welcome-btn:hover {
+            background: linear-gradient(135deg, rgba(212, 184, 150, 0.3), rgba(154, 180, 196, 0.3));
+        }
+
+        body.dark-mode .diary-item-date {
+            color: var(--text-tertiary);
+        }
+
+        body.dark-mode .diary-item-title {
+            color: var(--text-primary);
+        }
+
+        body.dark-mode .diary-item-preview {
+            color: var(--text-secondary);
+        }
+
+        body.dark-mode .diary-item-delete:hover {
+            background: rgba(196, 160, 160, 0.25);
+            color: #d4a0a0;
+        }
+
+        body.dark-mode .empty-state-text {
+            color: var(--text-tertiary);
+        }
+
+        /* Settings Modal Styles */
+        .settings-modal {
+            max-width: 450px;
+        }
+
+        .settings-content {
+            padding: 8px 0;
+        }
+
+        .setting-item {
+            margin-bottom: 24px;
+        }
+
+        .setting-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .setting-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        /* Theme Buttons */
+        .theme-btn {
+            flex: 1;
+            min-width: 80px;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .theme-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
+            border-color: var(--border-strong);
+            transform: translateY(-2px);
+        }
+
+        .theme-btn.active {
+            background: rgba(196, 168, 130, 0.2);
+            border-color: var(--accent-warm);
+        }
+
+        .theme-icon {
+            font-size: 20px;
+        }
+
+        .theme-btn span:last-child {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .theme-btn.active span:last-child {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* Font Size Slider */
+        .font-size-slider {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--border);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .font-size-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent-warm);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid white;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .font-size-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .font-size-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent-warm);
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .font-size-value {
+            font-size: 13px;
+            color: var(--text-secondary);
+            min-width: 50px;
+            text-align: right;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Setting Select */
+        .setting-select {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.3);
+            font-family: 'Noto Serif SC', serif;
+            font-size: 13px;
+            color: var(--text-primary);
+            cursor: pointer;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .setting-select:hover {
+            border-color: var(--border-strong);
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .setting-select:focus {
+            border-color: var(--accent-warm);
+            background: rgba(255, 255, 255, 0.5);
+            box-shadow: 0 0 0 3px rgba(196, 168, 130, 0.1);
+        }
+
+        .modal-btn.primary {
+            background: linear-gradient(135deg, rgba(196, 168, 130, 0.3), rgba(143, 163, 176, 0.3));
+            border-color: rgba(196, 168, 130, 0.3);
+            color: var(--text-primary);
+        }
+
+        .modal-btn.primary:hover {
+            background: linear-gradient(135deg, rgba(196, 168, 130, 0.45), rgba(143, 163, 176, 0.45));
+        }
+
+        /* Template Modal Styles */
+        .template-modal {
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .template-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+            max-height: 320px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .template-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .template-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .template-list::-webkit-scrollbar-thumb {
+            background: var(--border-strong);
+            border-radius: 2px;
+        }
+
+        .template-card {
+            padding: 20px 16px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .template-card:hover {
+            background: rgba(255, 255, 255, 0.5);
+            border-color: var(--accent-warm);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .template-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .template-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .template-desc {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            line-height: 1.4;
+        }
+
+        /* Dark mode template styles */
+        body.dark-mode .template-card {
+            background: rgba(40, 36, 32, 0.4);
+            border-color: var(--border);
+        }
+
+        body.dark-mode .template-card:hover {
+            background: rgba(196, 168, 130, 0.15);
+            border-color: var(--accent-warm);
+        }
+
+        /* Responsive template list */
+        @media (max-width: 768px) {
+            .template-list {
+                grid-template-columns: 1fr;
+                max-height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="three-canvas"></canvas>
+
+    <div class="app-container">
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">✦</div>
+                <div>
+                    <div class="logo-text">流光日记</div>
+                    <div class="logo-subtitle">Flow Diary</div>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="header-btn" onclick="toggleZenMode()" title="禅模式 (Ctrl+Shift+Z)">
+                    <span>☯</span> 禅模式
+                </button>
+                <button class="header-btn" onclick="importDiaries()" title="导入日记">
+                    <span>↑</span> 导入
+                </button>
+                <button class="header-btn" onclick="exportDiaries()" title="导出日记">
+                    <span>↓</span> 导出
+                </button>
+                <button class="header-btn" onclick="openSettings()" title="设置">
+                    <span>⚙</span> 设置
+                </button>
+                <button class="header-btn primary" onclick="createNewDiary()" title="新建日记 (Ctrl+N)">
+                    <span>+</span> 写日记
+                </button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header" id="sidebarHeader">
+                    <button class="search-toggle-btn" id="searchToggleBtn" onclick="toggleSearchBar()" title="切换搜索栏">
+                        🔍
+                    </button>
+                    <div class="search-box-wrapper" id="searchBoxWrapper">
+                        <input type="text" class="search-box" id="searchBox" placeholder="搜索日记..." oninput="searchDiaries(this.value)">
+                    </div>
+                </div>
+                <div class="sidebar-stats" id="sidebarStats">
+                    <div class="stat-chip">共 <span id="totalCount">0</span> 篇</div>
+                    <div class="stat-chip">本月 <span id="monthCount">0</span> 篇</div>
+                    <div class="stat-chip"><span id="totalWords">0</span> 字</div>
+                </div>
+                <div class="diary-list" id="diaryList"></div>
+            </aside>
+
+            <main class="editor-area" id="editorArea">
+                <div class="welcome-screen" id="welcomeScreen">
+                    <div class="welcome-icon">🌊</div>
+                    <h2 class="welcome-title">记录每一个流动的瞬间</h2>
+                    <p class="welcome-desc">
+                        在这里，你的思绪如水般流淌<br>
+                        每一段文字都是时光的涟漪<br>
+                        静静书写，让心灵在此处安息
+                    </p>
+                    <button class="welcome-btn" onclick="createNewDiary()">开始书写 →</button>
+                </div>
+
+                <div id="editorPanel" style="display:none; flex:1; flex-direction:column; height:100%; overflow:hidden;">
+                    <div class="editor-container" style="flex:1; display:flex; flex-direction:column; max-width:780px; width:100%; margin:0 auto; padding:40px 50px; overflow:hidden;">
+                        <div class="editor-meta">
+                            <div class="editor-date" id="editorDate"></div>
+                            <div class="weather-selector">
+                                <button class="weather-btn" data-weather="☀️" onclick="setWeather(this)" title="晴天">☀️</button>
+                                <button class="weather-btn" data-weather="⛅" onclick="setWeather(this)" title="多云">⛅</button>
+                                <button class="weather-btn" data-weather="🌧️" onclick="setWeather(this)" title="雨天">🌧️</button>
+                                <button class="weather-btn" data-weather="🌨️" onclick="setWeather(this)" title="雪天">🌨️</button>
+                            </div>
+                            <div class="mood-selector">
+                                <button class="mood-btn" data-mood="😊" onclick="setMood(this)" title="开心">😊</button>
+                                <button class="mood-btn" data-mood="😌" onclick="setMood(this)" title="平静">😌</button>
+                                <button class="mood-btn" data-mood="🥰" onclick="setMood(this)" title="幸福">🥰</button>
+                                <button class="mood-btn" data-mood="😢" onclick="setMood(this)" title="难过">😢</button>
+                                <button class="mood-btn" data-mood="😤" onclick="setMood(this)" title="生气">😤</button>
+                                <button class="mood-btn" data-mood="🤔" onclick="setMood(this)" title="思考">🤔</button>
+                            </div>
+                        </div>
+                        <input type="text" class="title-input" id="titleInput" placeholder="为今天取一个标题..." oninput="autoSave()">
+                        <textarea class="content-editor" id="contentEditor" placeholder="今天发生了什么..." oninput="autoSave()" spellcheck="false"></textarea>
+                        <div class="tags-container" id="tagsContainer">
+                            <div class="tag-input-wrapper">
+                                <input type="text" class="tag-input" id="tagInput" placeholder="+ 标签" onkeydown="addTag(event)">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="editor-footer" style="padding:16px 50px; display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--border); backdrop-filter:blur(10px); background:rgba(245,240,235,0.2); flex-shrink:0;">
+                        <div style="display:flex; align-items:center; gap:16px;">
+                            <span class="word-count" id="wordCount">0 字</span>
+                            <button class="delete-btn" onclick="confirmDelete()">删除此篇</button>
+                        </div>
+                        <div class="save-status" id="saveStatus">
+                            <div class="save-dot"></div>
+                            <span>等待编辑</span>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Template Modal -->
+    <div class="modal-overlay" id="templateModal">
+        <div class="modal template-modal">
+            <div class="modal-title">选择日记模板</div>
+            <div class="modal-subtitle">选择一个模板开始今天的记录</div>
+            <div class="template-list" id="templateList"></div>
+            <div class="modal-actions">
+                <button class="modal-btn" onclick="closeTemplateModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Modal -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal">
+            <div class="modal-title">确认删除</div>
+            <div class="modal-text">这篇日记删除后将无法恢复，<br>确定要删除吗？</div>
+            <div class="modal-actions">
+                <button class="modal-btn" onclick="closeModal()">取消</button>
+                <button class="modal-btn danger" onclick="deleteDiary()">确认删除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal settings-modal">
+            <div class="modal-title">设置</div>
+            <div class="settings-content">
+                <div class="setting-item">
+                    <label class="setting-label">界面主题</label>
+                    <div class="setting-control">
+                        <button class="theme-btn" id="lightThemeBtn" onclick="setTheme('light')">
+                            <span class="theme-icon">☀️</span>
+                            <span>浅色</span>
+                        </button>
+                        <button class="theme-btn" id="darkThemeBtn" onclick="setTheme('dark')">
+                            <span class="theme-icon">🌙</span>
+                            <span>深色</span>
+                        </button>
+                        <button class="theme-btn" id="autoThemeBtn" onclick="setTheme('auto')">
+                            <span class="theme-icon">🔄</span>
+                            <span>跟随系统</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <label class="setting-label">编辑器字号</label>
+                    <div class="setting-control">
+                        <input type="range" class="font-size-slider" id="fontSizeSlider" min="12" max="24" value="15" onchange="setFontSize(this.value)">
+                        <span class="font-size-value" id="fontSizeValue">15px</span>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <label class="setting-label">行间距</label>
+                    <div class="setting-control">
+                        <select class="setting-select" id="lineHeightSelect" onchange="setLineHeight(this.value)">
+                            <option value="1.5">紧凑</option>
+                            <option value="1.8">适中</option>
+                            <option value="2" selected>宽松</option>
+                            <option value="2.5">舒适</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn primary" onclick="closeSettings()">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-footer" id="appFooter">
+        <span>Flow Diary</span>
+    </div>
+
+    <div class="zen-indicator" id="zenIndicator" onclick="toggleZenMode()" title="退出禅模式">
+        ☯
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
