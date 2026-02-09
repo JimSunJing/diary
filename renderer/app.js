@@ -13,7 +13,7 @@ function initThree() {
     renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(0xe8e2db, 1);
+    renderer.setClearColor(0x0a1628, 1);
 
     clock = new THREE.Clock();
 
@@ -23,10 +23,10 @@ function initThree() {
         uniforms: {
             uTime: { value: 0 },
             uMouse: { value: new THREE.Vector2(0, 0) },
-            uColor1: { value: new THREE.Color('#d4c8b8') },
-            uColor2: { value: new THREE.Color('#b8c8d4') },
-            uColor3: { value: new THREE.Color('#d4b8c0') },
-            uColor4: { value: new THREE.Color('#c8d4b8') },
+            uColor1: { value: new THREE.Color('#1e3a5f') },
+            uColor2: { value: new THREE.Color('#2d5a87') },
+            uColor3: { value: new THREE.Color('#4a90c2') },
+            uColor4: { value: new THREE.Color('#6ab0e0') },
         },
         vertexShader: `
             uniform float uTime;
@@ -179,7 +179,7 @@ function initThree() {
 
                 float alpha = 1.0 - smoothstep(0.2, 0.5, dist);
                 alpha *= 0.15;
-                gl_FragColor = vec4(vec3(0.72, 0.68, 0.64), alpha);
+                gl_FragColor = vec4(vec3(0.35, 0.55, 0.85), alpha);
             }
         `,
         transparent: true,
@@ -232,72 +232,77 @@ function animate() {
 }
 
 // ========== Templates ==========
-const templates = {
-    freestyle: {
+// Default templates that will be used if no custom templates exist
+const defaultTemplates = [
+    {
         id: 'freestyle',
         name: '自由书写',
         icon: '📝',
         description: '没有任何限制，自由记录此刻的想法',
         title: '',
-        content: ''
+        content: '',
+        order: 0
     },
-    gratitude: {
+    {
         id: 'gratitude',
         name: '三件好事',
         icon: '✨',
         description: '记录今天让你感恩或开心的事情',
         title: '今日三件好事',
-        content: '1. \n\n2. \n\n3. '
+        content: '1. \n\n2. \n\n3. ',
+        order: 1
     },
-    morning: {
+    {
         id: 'morning',
         name: '晨间记录',
         icon: '🌅',
         description: '开启新的一天，设定今日目标',
         title: '晨间记录',
-        content: '【今日目标】\n\n\n【今日期待】\n\n\n【此刻心情】\n'
+        content: '【今日目标】\n\n\n【今日期待】\n\n\n【此刻心情】\n',
+        order: 2
     },
-    evening: {
+    {
         id: 'evening',
         name: '晚间反思',
         icon: '🌙',
         description: '回顾一天，总结收获与感悟',
         title: '晚间反思',
-        content: '【今日高光】\n\n\n【学到的事】\n\n【明天改进】\n'
+        content: '【今日高光】\n\n\n【学到的事】\n\n【明天改进】\n',
+        order: 3
     },
-    weekly: {
+    {
         id: 'weekly',
         name: '周记',
         icon: '📅',
         description: '回顾一周，规划未来',
         title: '本周回顾',
-        content: '【本周成就】\n\n\n【本周挑战】\n\n【下周计划】\n\n【感恩时刻】\n'
+        content: '【本周成就】\n\n\n【本周挑战】\n\n【下周计划】\n\n【感恩时刻】\n',
+        order: 4
     },
-    random: {
-        id: 'random',
+    {
+        id: 'thinking',
         name: '深度思考',
         icon: '🤔',
-        description: '随机深度问题，探索内心世界',
-        getTitle: () => '深度思考',
-        getContent: () => {
-            const prompts = [
-                '如果今天可以重来，我会...\n\n',
-                '一个月后的我，希望今天的我做了什么？\n\n',
-                '最近我一直在逃避的事情是...\n\n',
-                '我想对一年后的自己说...\n\n',
-                '如果没有任何限制，我最想做的事情是...\n\n',
-                '最近让我焦虑的事情是...\n\n',
-                '我最欣赏自己的三个特质是...\n\n',
-                '如果可以给过去的自己一个建议，我会说...\n\n',
-                '我理想中的生活是什么样子的？\n\n',
-                '最近我最大的成长是...\n\n'
-            ];
-            return prompts[Math.floor(Math.random() * prompts.length)];
-        }
+        description: '深入思考一个问题或主题',
+        title: '深度思考',
+        content: '【思考主题】\n\n\n【我的想法】\n\n\n【结论/行动】\n',
+        order: 5
     }
-};
+];
 
+// Available icons for templates
+const templateIcons = [
+    '📝', '✨', '🌅', '🌙', '📅', '🤔', '📖', '✏️', '📌', '🔖',
+    '💭', '💡', '🎯', '🏃', '🌱', '🌸', '🍃', '🍂', '❄️', '☀️',
+    '⭐', '💫', '🔥', '💧', '🌊', '🏔️', '🌈', '🦋', '🐦', '🌺',
+    '❤️', '🧡', '💛', '💚', '💙', '💜', '🤍', '🖤', '💯', '✅',
+    '📊', '📈', '🎨', '🎭', '🎪', '🎬', '📷', '🎵', '🎸', '🎹',
+    '☕', '🍵', '🍰', '🥗', '🍜', '⚽', '🏀', '🎮', '🎲', '🧩'
+];
+
+let templates = [];
 let selectedTemplate = 'freestyle';
+let editingTemplateId = null;
 
 // ========== Diary App Logic ==========
 let diaries = [];
@@ -356,21 +361,124 @@ async function saveDiaries() {
     }
 }
 
+// ========== Template Management ==========
+async function loadTemplates() {
+    if (isElectron) {
+        const result = await window.electronAPI.loadTemplates();
+        if (result.success && result.data && result.data.length > 0) {
+            templates = result.data;
+        } else {
+            // Use default templates if none exist
+            templates = [...defaultTemplates];
+            await saveTemplates();
+        }
+    } else {
+        // Load from localStorage (browser mode)
+        const stored = localStorage.getItem('flowDiaryTemplates');
+        if (stored) {
+            templates = JSON.parse(stored);
+        } else {
+            templates = [...defaultTemplates];
+            localStorage.setItem('flowDiaryTemplates', JSON.stringify(templates));
+        }
+    }
+}
+
+async function saveTemplates() {
+    if (isElectron) {
+        const result = await window.electronAPI.saveTemplates(templates);
+        if (!result.success) {
+            console.error('Failed to save templates:', result.error);
+            // Fallback to localStorage
+            localStorage.setItem('flowDiaryTemplates', JSON.stringify(templates));
+        }
+    } else {
+        // Save to localStorage (browser mode)
+        localStorage.setItem('flowDiaryTemplates', JSON.stringify(templates));
+    }
+}
+
+function getTemplateById(id) {
+    return templates.find(t => t.id === id);
+}
+
+function addTemplate(template) {
+    // 自动分配 order，取当前最大 order + 1
+    const maxOrder = templates.length > 0 ? Math.max(...templates.map(t => t.order || 0)) : -1;
+    const newTemplate = {
+        ...template,
+        id: generateId(),
+        order: maxOrder + 1
+    };
+    templates.push(newTemplate);
+    saveTemplates();
+    return newTemplate;
+}
+
+function updateTemplate(id, updates) {
+    const index = templates.findIndex(t => t.id === id);
+    if (index !== -1) {
+        templates[index] = { ...templates[index], ...updates };
+        saveTemplates();
+        return templates[index];
+    }
+    return null;
+}
+
+function deleteTemplate(id) {
+    const index = templates.findIndex(t => t.id === id);
+    if (index !== -1) {
+        templates.splice(index, 1);
+        saveTemplates();
+        return true;
+    }
+    return false;
+}
+
+function resetTemplatesToDefault() {
+    templates = [...defaultTemplates];
+    saveTemplates();
+}
+
+// 排序模板
+function reorderTemplates(draggedId, targetId) {
+    const draggedIndex = templates.findIndex(t => t.id === draggedId);
+    const targetIndex = templates.findIndex(t => t.id === targetId);
+    
+    if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) {
+        return false;
+    }
+    
+    // 移除拖拽的模板
+    const [draggedTemplate] = templates.splice(draggedIndex, 1);
+    
+    // 插入到目标位置
+    templates.splice(targetIndex, 0, draggedTemplate);
+    
+    // 重新分配 order
+    templates.forEach((template, index) => {
+        template.order = index;
+    });
+    
+    saveTemplates();
+    return true;
+}
+
 function createNewDiary() {
     // Show template selector
     openTemplateModal();
 }
 
 function createDiaryWithTemplate(templateId) {
-    const template = templates[templateId];
+    const template = getTemplateById(templateId);
     if (!template) return;
     
     const now = new Date();
-    const content = template.getContent ? template.getContent() : template.content;
+    const content = template.content || '';
     
     const diary = {
         id: generateId(),
-        title: template.getTitle ? template.getTitle() : template.title,
+        title: template.title || '',
         content: content,
         mood: '',
         weather: '',
@@ -380,10 +488,14 @@ function createDiaryWithTemplate(templateId) {
     };
     diaries.unshift(diary);
     saveDiaries();
-    openDiary(diary.id);
-    updateSidebar();
-    updateStats();
     closeTemplateModal();
+    
+    // 等待模态框关闭动画完成后再打开编辑器
+    setTimeout(() => {
+        openDiary(diary.id);
+        updateSidebar();
+        updateStats();
+    }, 50);
 }
 
 // Template Modal Functions
@@ -406,7 +518,10 @@ function renderTemplates() {
     const container = document.getElementById('templateList');
     if (!container) return;
     
-    container.innerHTML = Object.values(templates).map(template => `
+    // 按 order 排序
+    const sortedTemplates = [...templates].sort((a, b) => (a.order || 0) - (b.order || 0));
+    
+    container.innerHTML = sortedTemplates.map(template => `
         <div class="template-card" onclick="selectTemplate('${template.id}')">
             <div class="template-icon">${template.icon}</div>
             <div class="template-name">${template.name}</div>
@@ -1156,6 +1271,7 @@ function escapeHtml(text) {
 // ========== Initialize ==========
 document.addEventListener('DOMContentLoaded', async () => {
     initThree();
+    await loadTemplates();
     await loadDiaries();
     loadSettings();
 
@@ -1208,10 +1324,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (e.key === 'Escape') {
             const settingsModal = document.getElementById('settingsModal');
             const templateModal = document.getElementById('templateModal');
+            const templateManagerModal = document.getElementById('templateManagerModal');
+            const templateEditorModal = document.getElementById('templateEditorModal');
             const importOptionsModal = document.getElementById('importOptionsModal');
             
             if (isZenMode) {
                 toggleZenMode();
+            } else if (templateEditorModal && templateEditorModal.classList.contains('active')) {
+                closeTemplateEditor();
+            } else if (templateManagerModal && templateManagerModal.classList.contains('active')) {
+                closeTemplateManager();
             } else if (importOptionsModal) {
                 closeImportModal();
             } else if (templateModal && templateModal.classList.contains('active')) {
@@ -1237,3 +1359,190 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('Data path:', dataPath);
     }
 });
+
+// ========== Template Manager UI Functions ==========
+function openTemplateManager() {
+    closeTemplateModal();
+    const modal = document.getElementById('templateManagerModal');
+    if (modal) {
+        modal.classList.add('active');
+        renderTemplateManagerList();
+    }
+}
+
+function closeTemplateManager() {
+    const modal = document.getElementById('templateManagerModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+function renderTemplateManagerList() {
+    const container = document.getElementById('templateManagerList');
+    if (!container) return;
+
+    // 按 order 排序
+    const sortedTemplates = [...templates].sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    container.innerHTML = sortedTemplates.map(template => `
+        <div class="template-item" draggable="true" data-template-id="${template.id}" ondragstart="handleDragStart(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event)" ondragend="handleDragEnd(event)">
+            <div class="template-item-drag-handle" title="拖动排序">☰</div>
+            <div class="template-item-icon">${template.icon}</div>
+            <div class="template-item-info">
+                <div class="template-item-name">${escapeHtml(template.name)}</div>
+                <div class="template-item-desc">${escapeHtml(template.description)}</div>
+            </div>
+            <div class="template-item-actions">
+                <button class="template-item-btn" onclick="editTemplate('${template.id}')" title="编辑">✏️</button>
+                <button class="template-item-btn delete" onclick="confirmDeleteTemplate('${template.id}')" title="删除">🗑️</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+let draggedTemplateId = null;
+
+function handleDragStart(event) {
+    draggedTemplateId = event.currentTarget.dataset.templateId;
+    event.currentTarget.classList.add('dragging');
+    event.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    
+    const targetItem = event.currentTarget;
+    if (targetItem.dataset.templateId !== draggedTemplateId) {
+        targetItem.classList.add('drag-over');
+    }
+}
+
+function handleDrop(event) {
+    event.preventDefault();
+    const targetItem = event.currentTarget;
+    const targetId = targetItem.dataset.templateId;
+    
+    if (draggedTemplateId && draggedTemplateId !== targetId) {
+        if (reorderTemplates(draggedTemplateId, targetId)) {
+            renderTemplateManagerList();
+        }
+    }
+    
+    targetItem.classList.remove('drag-over');
+}
+
+function handleDragEnd(event) {
+    event.currentTarget.classList.remove('dragging');
+    // 移除所有 drag-over 样式
+    document.querySelectorAll('.template-item').forEach(item => {
+        item.classList.remove('drag-over');
+    });
+    draggedTemplateId = null;
+}
+
+function openTemplateEditor(templateId = null) {
+    editingTemplateId = templateId;
+    const modal = document.getElementById('templateEditorModal');
+    const title = document.getElementById('templateEditorTitle');
+    const deleteBtn = document.getElementById('deleteTemplateBtn');
+
+    if (modal) {
+        modal.classList.add('active');
+
+        if (templateId) {
+            const template = getTemplateById(templateId);
+            if (template) {
+                title.textContent = '编辑模板';
+                document.getElementById('templateNameInput').value = template.name;
+                document.getElementById('templateDescInput').value = template.description;
+                document.getElementById('templateTitleInput').value = template.title || '';
+                document.getElementById('templateContentInput').value = template.content || '';
+                if (deleteBtn) deleteBtn.style.display = 'inline-block';
+                renderIconPicker(template.icon);
+            }
+        } else {
+            title.textContent = '新建模板';
+            document.getElementById('templateNameInput').value = '';
+            document.getElementById('templateDescInput').value = '';
+            document.getElementById('templateTitleInput').value = '';
+            document.getElementById('templateContentInput').value = '';
+            if (deleteBtn) deleteBtn.style.display = 'none';
+            renderIconPicker('📝');
+        }
+    }
+}
+
+function editTemplate(templateId) {
+    openTemplateEditor(templateId);
+}
+
+function closeTemplateEditor() {
+    const modal = document.getElementById('templateEditorModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+    editingTemplateId = null;
+}
+
+function renderIconPicker(selectedIcon) {
+    const container = document.getElementById('iconPicker');
+    if (!container) return;
+
+    container.innerHTML = templateIcons.map(icon => `
+        <div class="icon-option ${icon === selectedIcon ? 'selected' : ''}" onclick="selectIcon('${icon}')">${icon}</div>
+    `).join('');
+}
+
+let selectedIconForTemplate = '📝';
+
+function selectIcon(icon) {
+    selectedIconForTemplate = icon;
+    renderIconPicker(icon);
+}
+
+function saveTemplateFromEditor() {
+    const name = document.getElementById('templateNameInput').value.trim();
+    const description = document.getElementById('templateDescInput').value.trim();
+    const title = document.getElementById('templateTitleInput').value.trim();
+    const content = document.getElementById('templateContentInput').value;
+
+    if (!name) {
+        alert('请输入模板名称');
+        return;
+    }
+
+    const templateData = {
+        name,
+        description: description || '无描述',
+        icon: selectedIconForTemplate,
+        title,
+        content
+    };
+
+    if (editingTemplateId) {
+        updateTemplate(editingTemplateId, templateData);
+    } else {
+        addTemplate(templateData);
+    }
+
+    closeTemplateEditor();
+    renderTemplateManagerList();
+}
+
+function confirmDeleteTemplate(templateId) {
+    if (confirm('确定要删除这个模板吗？')) {
+        deleteTemplate(templateId);
+        renderTemplateManagerList();
+    }
+}
+
+function deleteCurrentTemplate() {
+    if (editingTemplateId) {
+        if (confirm('确定要删除这个模板吗？')) {
+            deleteTemplate(editingTemplateId);
+            closeTemplateEditor();
+            renderTemplateManagerList();
+        }
+    }
+}

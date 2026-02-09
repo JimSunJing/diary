@@ -4,6 +4,7 @@ const fs = require('fs');
 
 let mainWindow;
 const dataPath = path.join(app.getPath('userData'), 'diaries.json');
+const templatesPath = path.join(app.getPath('userData'), 'templates.json');
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -166,4 +167,30 @@ ipcMain.handle('get-data-path', () => {
 // 获取应用版本
 ipcMain.handle('get-app-version', () => {
   return app.getVersion();
+});
+
+// ========== Template Management ==========
+// 从文件读取模板
+ipcMain.handle('load-templates', async () => {
+  try {
+    if (fs.existsSync(templatesPath)) {
+      const data = fs.readFileSync(templatesPath, 'utf-8');
+      return { success: true, data: JSON.parse(data) };
+    }
+    return { success: true, data: [] };
+  } catch (err) {
+    console.error('Failed to load templates:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// 保存模板到文件
+ipcMain.handle('save-templates', async (event, templates) => {
+  try {
+    fs.writeFileSync(templatesPath, JSON.stringify(templates, null, 2), 'utf-8');
+    return { success: true };
+  } catch (err) {
+    console.error('Failed to save templates:', err);
+    return { success: false, error: err.message };
+  }
 });
